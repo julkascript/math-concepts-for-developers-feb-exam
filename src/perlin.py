@@ -4,6 +4,12 @@
 Algorithm: grid of unit cells; at each vertex a random gradient vector;
 for each point, dot products of gradients with distance vectors, then
 smooth interpolation (ease curve s(t) = 3t^2 - 2t^3).
+
+Note: Perlin's 2002 improved noise uses s(t) = 6t^5 - 15t^4 + 10t^3 (see
+`_ease_improved`), which also has zero *second* derivative at endpoints,
+eliminating visible second-order discontinuities across cell boundaries.
+We keep the classic smoothstep here for clarity, but the improved version
+is preferable in production use.
 """
 
 import numpy as np
@@ -12,19 +18,28 @@ from typing import Union
 from src.prng import seed_to_int, LCG
 
 
-# Four gradient directions for 2D (unit vectors) — avoids diagonal bias
+INV_SQRT2 = 1.0 / np.sqrt(2)
+
+# Eight gradient directions for 2D (unit vectors).
+# Axis-aligned (cardinal) directions plus four diagonal directions (normalised).
+# Using 8 directions reduces directional bias compared to 4 cardinal-only gradients.
 GRADIENTS_2D = np.array([
-    [1, 0], [-1, 0], [0, 1], [0, -1],
-    [1, 1], [-1, -1], [1, -1], [-1, 1]
+    [1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0],
+    [INV_SQRT2, INV_SQRT2], [-INV_SQRT2, -INV_SQRT2],
+    [INV_SQRT2, -INV_SQRT2], [-INV_SQRT2, INV_SQRT2],
 ], dtype=np.float64)
-# Normalize the diagonals
-for i in range(4, 8):
-    GRADIENTS_2D[i] /= np.sqrt(2)
 
 
 def _ease(t: np.ndarray) -> np.ndarray:
-    """Smoothstep (ease) curve: s(t) = 3t^2 - 2t^3. Zero derivative at 0 and 1."""
+    """Classic smoothstep: s(t) = 3t² - 2t³. Zero first derivative at t=0 and t=1."""
     return t * t * (3.0 - 2.0 * t)
+
+
+def _ease_improved(t: np.ndarray) -> np.ndarray:
+    """Perlin's 2002 improved ease: s(t) = 6t⁵ - 15t⁴ + 10t³.
+    Zero first *and* second derivative at t=0 and t=1, removing second-order
+    (curvature) discontinuities at cell boundaries."""
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 
 
 class PerlinNoise2D:
@@ -49,12 +64,9 @@ class PerlinNoise2D:
         self._grad_idx = self._perm % len(GRADIENTS_2D)
 
     def _gradient_at(self, ix: int, iy: int) -> np.ndarray:
-        """Get gradient vector at grid cell (ix, iy) using permutation."""
-        i = (ix % self.PERM_SIZE) + (iy % self.PERM_SIZE) * 0  # avoid 2D perm if we want
-        # Standard approach: combine ix, iy into single perm index
+        """Get gradient vector at grid cell (ix, iy) using permutation table."""
         idx = (self._perm[ix % self.PERM_SIZE] + iy) % self.PERM_SIZE
-        g = self._grad_idx[idx]
-        return GRADIENTS_2D[g]
+        return GRADIENTS_2D[self._grad_idx[idx]]
 
     def noise_scalar(self, x: float, y: float) -> float:
         """

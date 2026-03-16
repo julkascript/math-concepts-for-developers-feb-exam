@@ -1,13 +1,20 @@
 """
-Terrain generation from seed: multi-octave Perlin noise as height map.
+Terrain generation from seed: multi-octave Perlin noise (fBm) as height map.
 
-height(x,y) = sum over i of persistence^i * noise(frequency^i * x, frequency^i * y)
+height(x,y) = sum_{i=0}^{k-1} persistence^i * noise(frequency * lacunarity^i * x,
+                                                      frequency * lacunarity^i * y)
+
+lacunarity is fixed at 2.0 (each octave doubles the spatial frequency).
+persistence controls amplitude decay per octave (typically 0.5).
 """
 
 import numpy as np
 from typing import Union, Tuple, Optional
 
 from src.perlin import PerlinNoise2D
+
+
+LACUNARITY = 2.0  # frequency multiplier per octave (standard value)
 
 
 def generate_terrain(
@@ -19,7 +26,7 @@ def generate_terrain(
     scale: float = 1.0,
 ) -> np.ndarray:
     """
-    Generate a 2D height map from a seed using multi-octave Perlin noise.
+    Generate a 2D height map from a seed using multi-octave Perlin noise (fBm).
 
     Parameters
     ----------
@@ -28,18 +35,24 @@ def generate_terrain(
     size : (rows, cols)
         Output shape (height, width).
     octaves : int
-        Number of noise layers; more => more detail.
+        Number of noise layers. Each octave doubles the spatial frequency
+        (lacunarity = 2.0) and halves the amplitude (when persistence = 0.5).
+        More octaves add finer detail.
     persistence : float
-        Amplitude multiplier per octave (< 1 dampens high frequencies).
+        Amplitude multiplier per octave (typically < 1; 0.5 halves amplitude
+        per octave, dampening high-frequency contributions).
     frequency : float
-        Base spatial frequency (higher => more zoomed-out / larger features).
+        Base spatial frequency. Higher values produce larger terrain features
+        (more "zoomed out"). Typical range: 0.005 – 0.05.
     scale : float
         Overall height scale (multiplier on final sum).
 
     Returns
     -------
     height_map : np.ndarray
-        Float array of shape `size`, values typically in a bounded range.
+        Float array of shape `size`. Values are *not* normalized by default;
+        the theoretical maximum is scale * sum(persistence^i, i=0..octaves-1)
+        = scale * (1 - persistence^octaves) / (1 - persistence).
     """
     r, c = size
     yy, xx = np.mgrid[0:r, 0:c].astype(np.float64)
@@ -48,13 +61,11 @@ def generate_terrain(
     total = np.zeros((r, c), dtype=np.float64)
     amp = 1.0
     freq = 1.0
-    max_val = 0.0  # for normalization (optional; we don't normalize by default)
 
     for _ in range(octaves):
         total += amp * perlin.noise_grid(xx * frequency * freq, yy * frequency * freq)
-        max_val += amp
         amp *= persistence
-        freq *= 2.0
+        freq *= LACUNARITY
 
     return total * scale
 
