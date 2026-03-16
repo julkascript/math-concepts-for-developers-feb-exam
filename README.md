@@ -2,6 +2,26 @@
 
 A mathematics and Python project that implements and explains a **seed-driven procedural world generation** system inspired by Minecraft: from a single integer seed, we produce deterministic, infinite-looking 2D terrain using pseudorandom number generators (PRNGs) and Perlin noise with octaves.
 
+## How to run
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Run the notebook:**
+   ```bash
+   jupyter notebook notebooks/seed_terrain_analysis.ipynb
+   ```
+   Or open `notebooks/seed_terrain_analysis.ipynb` in Jupyter Lab / VS Code.
+
+3. **Use the library (optional):**
+   ```python
+   from src.prng import seed_to_int, LCG
+   from src.perlin import PerlinNoise2D
+   from src.terrain import generate_terrain
+   ```
+
 ## Problem
 
 **Given a seed (integer or string), produce a deterministic 2D terrain** that looks natural and is reproducible. Same seed always yields the same terrain; different seeds yield different worlds. This mirrors how games like Minecraft use seeds for level generation.
@@ -25,26 +45,6 @@ A mathematics and Python project that implements and explains a **seed-driven pr
     ├── perlin.py       # 2D Perlin noise
     └── terrain.py     # Terrain from noise + octaves, visualization helpers
 ```
-
-## How to run
-
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Run the notebook:**
-   ```bash
-   jupyter notebook notebooks/seed_terrain_analysis.ipynb
-   ```
-   Or open `notebooks/seed_terrain_analysis.ipynb` in Jupyter Lab / VS Code.
-
-3. **Use the library (optional):**
-   ```python
-   from src.prng import seed_to_int, LCG
-   from src.perlin import PerlinNoise2D
-   from src.terrain import generate_terrain
-   ```
 
 ## References
 
